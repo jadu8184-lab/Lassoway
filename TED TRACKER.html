@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Focus Tracker</title>
+<style>
+  :root {
+    /* AFC Richmond Colors */
+    --richmond-blue: #0B2240;
+    --richmond-red: #D2122E;
+    --believe-yellow: #FBE122;
+    
+    /* Minimalist Theme Colors */
+    --bg-main: #f8fafc;
+    --bg-surface: #ffffff;
+    --text-primary: #0B2240; 
+    --text-secondary: #64748b;
+    --border-light: #e2e8f0;
+  }
+
+  * { 
+    margin: 0; 
+    padding: 0; 
+    box-sizing: border-box; 
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg-main);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 40px 20px;
+  }
+
+  /* Main layout */
+  .app {
+    display: grid;
+    grid-template-columns: 1.2fr 380px;
+    grid-template-rows: auto auto;
+    gap: 32px;
+    width: 100%;
+    max-width: 1100px;
+  }
+
+  .card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    padding: 32px;
+    box-shadow: 0 8px 30px rgba(11, 34, 64, 0.04);
+  }
+
+  .card-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-secondary);
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  /* Right Column: Character & Progress */
+  .character-section {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 32px;
+  }
+
+  .quote-container {
+    text-align: center;
+    font-size: 1.05rem;
+    font-weight: 400;
+    line-height: 1.6;
+    color: var(--richmond-blue);
+    font-style: italic;
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    transition: opacity 0.4s ease;
+  }
+  .quote-container.fade {
+    opacity: 0;
+  }
+
+  /* Floating Animation applied to wrapper */
+  .img-wrap {
+    width: 180px;
+    height: 180px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    animation: float 4s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-12px); }
+    100% { transform: translateY(0px); }
+  }
+  
+  .img-wrap img {
+    width: 200%;
+    height: 200%;
+    object-fit: contain;
+  }
+
+  /* Goal & Calendar Section */
+  .tracker-module {
+    width: 100%;
+    padding-top: 24px;
+    border-top: 1px solid var(--border-light);
+  }
+
+  /* Progress Bar */
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+  }
+  
+  .progress-bar-container {
+    width: 100%;
+    height: 14px;
+    background: #f1f5f9;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 8px;
+    border: 1px solid var(--border-light);
+  }
+  
+  .progress-bar {
+    height: 100%;
+    background: var(--believe-yellow);
+    width: 0%;
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .progress-stats {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .btn-reset-goal {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    text-decoration: underline;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .btn-reset-goal:hover { color: var(--richmond-red); }
+
+  /* Calendar */
+  .calendar-container {
+    margin-top: 32px;
+  }
+  .calendar-header {
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin-bottom: 16px;
+    color: var(--richmond-blue);
+  }
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    text-align: center;
+    font-size: 0.8rem;
+  }
+  .cal-day-header {
+    font-weight: 700;
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    padding-bottom: 4px;
+  }
+  .cal-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: #f8fafc;
+    color: var(--text-secondary);
+    font-weight: 500;
+    border: 1px solid transparent;
+  }
+  .cal-day.goal-met {
+    background: var(--believe-yellow);
+    color: var(--richmond-blue);
+    font-weight: 700;
+    border-color: #eab308;
+  }
+  .cal-day.goal-missed {
+    background: var(--richmond-red);
+    color: #ffffff;
+    font-weight: 700;
+  }
+  .cal-day.goal-today {
+    border: 2px solid var(--richmond-blue);
+    color: var(--richmond-blue);
+    font-weight: 700;
+  }
+
+  /* Achievements Section */
+  .achievements-container {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border-light);
+    width: 100%;
+  }
+  .achievements-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .achievement-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid var(--border-light);
+    opacity: 0.5;
+    filter: grayscale(1);
+    transition: all 0.3s ease;
+  }
+  .achievement-item.unlocked {
+    opacity: 1;
+    filter: grayscale(0);
+    background: #fff;
+    border-color: var(--believe-yellow);
+    box-shadow: 0 2px 10px rgba(251, 225, 34, 0.15);
+  }
+  .ach-icon {
+    font-size: 1.5rem;
+  }
+  .ach-text h4 {
+    font-size: 0.8rem;
+    color: var(--richmond-blue);
+    margin-bottom: 2px;
+  }
+  .ach-text p {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+  }
+
+  /* Left Column */
+  .left-col {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  /* Clock */
+  .clock-display {
+    text-align: center;
+    font-size: 6rem;
+    font-weight: 200;
+    letter-spacing: -3px;
+    color: var(--richmond-blue);
+    font-variant-numeric: tabular-nums;
+    margin: 10px 0;
+    transition: color 0.3s ease;
+  }
+  .clock-display.running {
+    color: var(--richmond-red);
+  }
+  .session-label {
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 12px;
+    margin-top: 32px;
+    justify-content: center;
+  }
+  .btn {
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 14px 28px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .btn-start {
+    background: var(--richmond-blue);
+    color: #fff;
+    border: 1px solid var(--richmond-blue);
+  }
+  .btn-start:hover { background: #081a30; }
+  
+  .btn-stop {
+    background: var(--richmond-red);
+    color: #fff;
+    border: 1px solid var(--richmond-red);
+  }
+  
+  .btn-lap {
+    background: #fff;
+    color: var(--richmond-blue);
+    border: 1px solid var(--border-light);
+  }
+  .btn-lap:hover { border-color: var(--richmond-blue); }
+  
+  .btn-reset {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid transparent;
+  }
+  .btn-reset:hover { color: var(--richmond-blue); }
+
+  /* Subjects */
+  .subject-section {
+    margin-top: 40px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border-light);
+  }
+  .subject-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .subject-chip {
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 8px 18px;
+    border-radius: 20px;
+    border: 1px solid var(--border-light);
+    background: #f8fafc;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .subject-chip:hover {
+    border-color: var(--richmond-blue);
+    color: var(--richmond-blue);
+  }
+  .subject-chip.active {
+    background: var(--believe-yellow);
+    border-color: var(--believe-yellow);
+    color: var(--richmond-blue);
+  }
+
+  /* Stats */
+  .totals {
+    display: flex;
+    gap: 24px;
+    margin-top: 16px;
+  }
+  .total-box {
+    flex: 1;
+    background: #f8fafc;
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border-light);
+  }
+  .total-box .val {
+    font-size: 1.8rem;
+    font-weight: 300;
+    color: var(--richmond-blue);
+  }
+  .total-box .lbl {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 4px;
+  }
+
+  /* Laps & Sessions */
+  .laps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+    justify-content: center;
+  }
+  .lap-tag {
+    background: var(--believe-yellow);
+    color: var(--richmond-blue);
+    font-weight: 600;
+    font-size: 0.75rem;
+    padding: 4px 10px;
+    border-radius: 4px;
+  }
+
+  .sessions-card {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .sessions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  .session-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border-left: 4px solid var(--richmond-blue);
+  }
+  
+  .session-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .session-subject {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--richmond-blue);
+    min-width: 80px;
+  }
+  .session-time {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+  }
+  .session-ts {
+    color: #94a3b8;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    background: var(--richmond-blue);
+    color: var(--believe-yellow);
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 14px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(11, 34, 64, 0.2);
+    z-index: 1000;
+    opacity: 0;
+    transform: translateY(-20px);
+    transition: all 0.3s ease;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .empty-state {
+    color: #94a3b8;
+    font-size: 0.85rem;
+    text-align: center;
+    padding: 32px 0;
+  }
+
+  @media (max-width: 850px) {
+    .app { grid-template-columns: 1fr; }
+    .character-section { grid-column: 1; grid-row: 1; }
+    .left-col { grid-row: 2; }
+    .sessions-card { grid-row: 3; }
+    .clock-display { font-size: 4.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<div class="app">
+
+  <!-- LEFT: Stopwatch -->
+  <div class="left-col">
+    <div class="card">
+      <div class="card-title">Focus Timer</div>
+
+      <div class="clock-display" id="clockDisplay">00:00:00</div>
+      <div class="session-label" id="sessionLabel">Ready to begin.</div>
+
+      <!-- Controls -->
+      <div class="controls">
+        <button class="btn btn-start" id="startBtn" onclick="startStop()">Start</button>
+        <button class="btn btn-lap" onclick="addLap()">Lap</button>
+        <button class="btn btn-reset" onclick="resetTimer()">Reset</button>
+      </div>
+
+      <!-- Laps -->
+      <div class="laps" id="lapsContainer"></div>
+
+      <!-- Subject chips -->
+      <div class="subject-section">
+        <div class="card-title" style="margin-bottom: 16px;">Study Module</div>
+        <div class="subject-row" id="subjectRow">
+          <button class="subject-chip active" onclick="setSubject(this, 'GS')">GS</button>
+          <button class="subject-chip" onclick="setSubject(this, 'Optional')">Optional</button>
+          <button class="subject-chip" onclick="setSubject(this, 'CLASS')">CLASS</button>
+          <button class="subject-chip" onclick="setSubject(this, 'CSAT')">CSAT</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="card">
+      <div class="card-title">Session Statistics</div>
+      <div class="totals">
+        <div class="total-box">
+          <div class="val" id="totalTime">0h 0m</div>
+          <div class="lbl">Total Time</div>
+        </div>
+        <div class="total-box">
+          <div class="val" id="sessionCount">0</div>
+          <div class="lbl">Sessions</div>
+        </div>
+        <div class="total-box">
+          <div class="val" id="longestSession">0m</div>
+          <div class="lbl">Longest Focus</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Character & Progress -->
+  <div class="character-section card">
+    <div class="quote-container" id="quoteText">
+      "I believe in you more than I believe in biscuits. And that's saying something."
+    </div>
+
+    <div class="img-wrap">
+      <img src="C:\Users\Divyanshu Raj\Downloads\Untitled (2).png" alt="Coach">
+    </div>
+
+    <!-- Goal & Calendar Module -->
+    <div class="tracker-module">
+      <div class="progress-header">
+        <span>Daily Goal (8 Hours)</span>
+      </div>
+      <div class="progress-bar-container">
+        <div class="progress-bar" id="goalProgressBar"></div>
+      </div>
+      <div class="progress-stats">
+        <span id="goalProgressText" style="color: var(--richmond-blue);">0h 0m</span>
+        <button class="btn-reset-goal" onclick="resetTodayGoal()">Reset Today</button>
+      </div>
+
+      <div class="calendar-container">
+        <div class="calendar-header" id="calMonth">Month Year</div>
+        <div class="calendar-grid" id="calendarGrid">
+          <!-- Calendar populated by JS -->
+        </div>
+      </div>
+    </div>
+    
+    <!-- Achievements Cabinet -->
+    <div class="achievements-container">
+      <div class="progress-header"><span>Trophy Cabinet</span></div>
+      <div class="achievements-list" id="achievementsList">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM LEFT: Session Log -->
+  <div class="card sessions-card">
+    <div class="card-title">Activity Log</div>
+    <div class="sessions-list" id="sessionsList">
+      <div class="empty-state">No recorded sessions today.</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ---- QUOTES ----
+  const quotes = [
+    "I believe in you more than I believe in biscuits. And that's saying something.",
+    "Taking on a challenge is a lot like riding a horse. If you're comfortable while you're doing it, you're probably doing it wrong.",
+    "Be curious, not judgmental.",
+    "Doing the right thing is never the wrong thing.",
+    "You say impossible, but all I hear is 'I'm possible.'",
+    "A good mentor hopes you'll move on. A great mentor knows you will.",
+    "There's two buttons I never like to hit: that's panic and snooze.",
+    "The harder you work, the luckier you get."
+  ];
+
+  let currentQuoteIndex = 0;
+  let quoteInterval;
+
+  function showQuote(text) {
+    const el = document.getElementById('quoteText');
+    el.classList.add('fade');
+    setTimeout(() => {
+      el.textContent = `"${text}"`;
+      el.classList.remove('fade');
+    }, 400);
+  }
+
+  function nextRandomQuote() {
+    let next;
+    do { next = Math.floor(Math.random() * quotes.length); }
+    while (next === currentQuoteIndex);
+    currentQuoteIndex = next;
+    showQuote(quotes[currentQuoteIndex]);
+  }
+
+  function startQuoteRotation() { quoteInterval = setInterval(nextRandomQuote, 18000); }
+  function stopQuoteRotation() { clearInterval(quoteInterval); }
+
+  // ---- ACHIEVEMENTS & NOTIFICATIONS ----
+  const ACHIEVEMENTS = {
+    'first_session': { icon: '🏅', title: 'Kickoff', desc: 'Complete your first session.', condition: () => sessions.length > 0 },
+    'one_hour': { icon: '🔥', title: 'Warming Up', desc: 'Focus for 1 hour in a day.', condition: () => totalStudiedToday >= 3600 },
+    'four_hours': { icon: '⚡', title: 'Half Time', desc: 'Focus for 4 hours in a day.', condition: () => totalStudiedToday >= 14400 },
+    'eight_hours': { icon: '🏆', title: 'The Full Match', desc: 'Hit the 8-hour daily goal.', condition: () => totalStudiedToday >= 28800 },
+    'marathon': { icon: '🧠', title: 'Extra Time', desc: 'A single session over 2 hours.', condition: () => Math.max(...sessions.map(s => s.duration), 0) >= 7200 }
+  };
+
+  let unlockedAchievements = JSON.parse(localStorage.getItem('studyAchievements')) || {};
+
+  function requestNotificationPermission() {
+    if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
+      Notification.requestPermission();
+    }
+  }
+
+  function sendPushNotification(title, body) {
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification(title, { body: body, icon: "🏆" });
+    } else {
+      showToast(`${title} - ${body}`);
+    }
+  }
+
+  function checkAchievements() {
+    let newlyUnlocked = false;
+    for (const [id, ach] of Object.entries(ACHIEVEMENTS)) {
+      if (!unlockedAchievements[id] && ach.condition()) {
+        unlockedAchievements[id] = true;
+        newlyUnlocked = true;
+        sendPushNotification(`Achievement Unlocked: ${ach.title}`, ach.desc);
+      }
+    }
+    if (newlyUnlocked) {
+      localStorage.setItem('studyAchievements', JSON.stringify(unlockedAchievements));
+      renderAchievements();
+    }
+  }
+
+  function renderAchievements() {
+    const list = document.getElementById('achievementsList');
+    list.innerHTML = '';
+    for (const [id, ach] of Object.entries(ACHIEVEMENTS)) {
+      const isUnlocked = unlockedAchievements[id];
+      list.innerHTML += `
+        <div class="achievement-item ${isUnlocked ? 'unlocked' : ''}">
+          <div class="ach-icon">${ach.icon}</div>
+          <div class="ach-text">
+            <h4>${ach.title}</h4>
+            <p>${ach.desc}</p>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+
+  // ---- TIMER & LOGIC ----
+  const GOAL_SECONDS = 8 * 3600; // 8 hours
+  let timerInterval = null;
+  let elapsed = 0; 
+  let startTime = null;
+  let running = false;
+  let currentSubject = 'GS';
+  let laps = [];
+  let sessions = [];
+  let totalStudiedToday = 0; 
+  
+  let dailyData = JSON.parse(localStorage.getItem('studyTrackerData')) || {};
+
+  function getTodayStr() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function pad(n) { return String(Math.floor(n)).padStart(2, '0'); }
+
+  function formatElapsed(ms) {
+    const totalSec = Math.floor(ms / 1000);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    return `${pad(h)}:${pad(m)}:${pad(s)}`;
+  }
+
+  function updateDisplay() {
+    const now = running ? elapsed + (Date.now() - startTime) : elapsed;
+    document.getElementById('clockDisplay').textContent = formatElapsed(now);
+    
+    // Live achievement check (e.g., reaching 1 hour mid-session)
+    const currentSessionSecs = Math.floor(now / 1000);
+    const tempTotal = totalStudiedToday + currentSessionSecs;
+    
+    if(!unlockedAchievements['one_hour'] && tempTotal >= 3600) checkAchievementsTemp(tempTotal, currentSessionSecs);
+    if(!unlockedAchievements['four_hours'] && tempTotal >= 14400) checkAchievementsTemp(tempTotal, currentSessionSecs);
+    if(!unlockedAchievements['eight_hours'] && tempTotal >= 28800) checkAchievementsTemp(tempTotal, currentSessionSecs);
+  }
+
+  // Temporary check for live timer milestones before saving session
+  function checkAchievementsTemp(tempTotal, tempCurrentSession) {
+     if (!unlockedAchievements['one_hour'] && tempTotal >= 3600) unlock('one_hour');
+     if (!unlockedAchievements['four_hours'] && tempTotal >= 14400) unlock('four_hours');
+     if (!unlockedAchievements['eight_hours'] && tempTotal >= 28800) unlock('eight_hours');
+     if (!unlockedAchievements['marathon'] && tempCurrentSession >= 7200) unlock('marathon');
+  }
+  
+  function unlock(id) {
+      unlockedAchievements[id] = true;
+      localStorage.setItem('studyAchievements', JSON.stringify(unlockedAchievements));
+      sendPushNotification(`Achievement Unlocked: ${ACHIEVEMENTS[id].title}`, ACHIEVEMENTS[id].desc);
+      renderAchievements();
+  }
+
+  function startStop() {
+    requestNotificationPermission(); // Ask for push notifications on first click
+    
+    const btn = document.getElementById('startBtn');
+    if (!running) {
+      running = true;
+      startTime = Date.now();
+      timerInterval = setInterval(updateDisplay, 1000);
+      btn.textContent = 'Pause';
+      btn.className = 'btn btn-stop';
+      document.getElementById('sessionLabel').textContent = `Focusing on: ${currentSubject}`;
+      startQuoteRotation();
+    } else {
+      running = false;
+      elapsed += Date.now() - startTime;
+      clearInterval(timerInterval);
+      btn.textContent = 'Resume';
+      btn.className = 'btn btn-start';
+      document.getElementById('sessionLabel').textContent = 'Paused.';
+      stopQuoteRotation();
+    }
+  }
+
+  function resetTimer() {
+    if (elapsed > 5000 || running) {
+      saveSession();
+    }
+    running = false;
+    elapsed = 0;
+    clearInterval(timerInterval);
+    laps = [];
+    document.getElementById('clockDisplay').textContent = '00:00:00';
+    document.getElementById('startBtn').textContent = 'Start';
+    document.getElementById('startBtn').className = 'btn btn-start';
+    document.getElementById('sessionLabel').textContent = 'Ready to begin.';
+    document.getElementById('lapsContainer').innerHTML = '';
+    stopQuoteRotation();
+    nextRandomQuote();
+  }
+
+  function addLap() {
+    const now = running ? elapsed + (Date.now() - startTime) : elapsed;
+    if (now < 1000) return;
+    const lapTime = formatElapsed(now);
+    laps.push(lapTime);
+    const tag = document.createElement('span');
+    tag.className = 'lap-tag';
+    tag.textContent = `Lap ${laps.length}: ${lapTime}`;
+    document.getElementById('lapsContainer').appendChild(tag);
+  }
+
+  function saveSession() {
+    if (elapsed < 5000) return;
+    const duration = running ? elapsed + (Date.now() - startTime) : elapsed;
+    const secs = Math.floor(duration / 1000);
+    if (secs < 5) return;
+
+    const session = {
+      subject: currentSubject,
+      duration: secs,
+      time: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})
+    };
+    sessions.push(session);
+    totalStudiedToday += secs;
+    
+    const today = getTodayStr();
+    dailyData[today] = (dailyData[today] || 0) + secs;
+    localStorage.setItem('studyTrackerData', JSON.stringify(dailyData));
+
+    renderSessions();
+    updateStats();
+    updateGoalUI();
+    renderCalendar();
+    checkAchievements();
+  }
+
+  // ---- STATS & UI UPDATES ----
+  function renderSessions() {
+    const list = document.getElementById('sessionsList');
+    if (sessions.length === 0) {
+      list.innerHTML = '<div class="empty-state">No recorded sessions today.</div>';
+      return;
+    }
+    list.innerHTML = sessions.slice().reverse().map(s => `
+      <div class="session-row">
+        <div class="session-info">
+          <span class="session-subject">${s.subject}</span>
+          <span class="session-time">${formatDuration(s.duration)}</span>
+        </div>
+        <span class="session-ts">${s.time}</span>
+      </div>
+    `).join('');
+  }
+
+  function formatDuration(secs) {
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    if (h > 0) return `${h}h ${m}m`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
+  }
+
+  function updateStats() {
+    const h = Math.floor(totalStudiedToday / 3600);
+    const m = Math.floor((totalStudiedToday % 3600) / 60);
+    document.getElementById('totalTime').textContent = `${h}h ${m}m`;
+    document.getElementById('sessionCount').textContent = sessions.length;
+    
+    const longest = sessions.length > 0 ? Math.max(...sessions.map(s => s.duration)) : 0;
+    const lm = Math.floor(longest / 60);
+    document.getElementById('longestSession').textContent = `${lm}m`;
+  }
+
+  function setSubject(el, name) {
+    document.querySelectorAll('.subject-chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    currentSubject = name;
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  // ---- GOAL & CALENDAR LOGIC ----
+  function updateGoalUI() {
+    const today = getTodayStr();
+    const todaySecs = dailyData[today] || 0;
+    
+    let percent = (todaySecs / GOAL_SECONDS) * 100;
+    if (percent > 100) percent = 100;
+    
+    document.getElementById('goalProgressBar').style.width = percent + '%';
+    
+    const h = Math.floor(todaySecs / 3600);
+    const m = Math.floor((todaySecs % 3600) / 60);
+    document.getElementById('goalProgressText').textContent = `${h}h ${m}m`;
+
+    if(percent === 100) {
+      document.getElementById('goalProgressBar').style.backgroundColor = "#22c55e"; 
+    } else {
+      document.getElementById('goalProgressBar').style.backgroundColor = "var(--believe-yellow)";
+    }
+  }
+
+  function resetTodayGoal() {
+    if(confirm("Are you sure you want to reset today's saved progress?")) {
+      const today = getTodayStr();
+      dailyData[today] = 0;
+      localStorage.setItem('studyTrackerData', JSON.stringify(dailyData));
+      
+      sessions = [];
+      totalStudiedToday = 0;
+      
+      renderSessions();
+      updateStats();
+      updateGoalUI();
+      renderCalendar();
+      showToast("Today's progress has been reset.");
+    }
+  }
+
+  function renderCalendar() {
+    const grid = document.getElementById('calendarGrid');
+    grid.innerHTML = '';
+    
+    const daysArr = ['S','M','T','W','T','F','S'];
+    daysArr.forEach(d => {
+        const el = document.createElement('div');
+        el.className = 'cal-day-header';
+        el.textContent = d;
+        grid.appendChild(el);
+    });
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    document.getElementById('calMonth').textContent = now.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const todayDate = now.getDate();
+
+    for(let i=0; i<firstDay; i++) {
+        const el = document.createElement('div');
+        grid.appendChild(el);
+    }
+
+    for(let i=1; i<=daysInMonth; i++) {
+        const el = document.createElement('div');
+        el.className = 'cal-day';
+        el.textContent = i;
+        
+        const dayStr = year + '-' + String(month+1).padStart(2, '0') + '-' + String(i).padStart(2, '0');
+        const secs = dailyData[dayStr] || 0;
+
+        if (secs >= GOAL_SECONDS) {
+            el.classList.add('goal-met');
+        } else if (i < todayDate) {
+            el.classList.add('goal-missed');
+        } else if (i === todayDate) {
+            el.classList.add('goal-today');
+        }
+
+        grid.appendChild(el);
+    }
+  }
+
+  // INIT
+  window.onload = () => {
+    showQuote(quotes[currentQuoteIndex]);
+    const today = getTodayStr();
+    totalStudiedToday = dailyData[today] || 0;
+    updateStats();
+    updateGoalUI();
+    renderCalendar();
+    renderAchievements();
+  };
+
+</script>
+</body>
+</html>
